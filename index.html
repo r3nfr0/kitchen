@@ -1416,6 +1416,13 @@ function gateAuth(mode){
     try{
       if(isIn)await AU.signInWithEmailAndPassword(auth,e,p);
       else await AU.createUserWithEmailAndPassword(auth,e,p);
+      setTimeout(()=>{
+        const b=document.getElementById("gGo");
+        if(b&&b.disabled){
+          b.disabled=false;b.textContent=isIn?"Sign in":"Create account";
+          err("That is taking longer than it should. Check your connection, or open the browser console for the exact error.");
+        }
+      },15000);
     }catch(x){
       err(niceAuthErr(x));
       btn.disabled=false;btn.textContent=isIn?"Sign in":"Create account";
@@ -1502,12 +1509,47 @@ function gateOffline(){
     '<button class="btn wide" onclick="location.reload()">Try again</button>'+
     '<button class="glink" style="margin-top:14px" onclick="goLocal()">Use on this device only</button>');
 }
+/* Firestore projects can have a custom-named database. Probe the standard one,
+   fall back to a database literally named "default", so either setup works. */
+async function pickDatabase(){
+  const probe=async name=>{
+    const d=name?FS.getFirestore(fbapp,name):FS.getFirestore(fbapp);
+    try{
+      await Promise.race([
+        FS.getDoc(FS.doc(d,"users",user.uid)),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),7000))
+      ]);
+      return{db:d,ok:true};
+    }catch(e){
+      const code=(e&&e.code)||"";
+      if(code.includes("permission-denied"))return{db:d,ok:false,rules:true};
+      return null;
+    }
+  };
+  let r=await probe(null);
+  if(!r)r=await probe("default");
+  if(!r)throw new Error("unreachable");
+  db=r.db;
+  if(r.rules)throw Object.assign(new Error("rules"),{rulesProblem:true});
+}
 async function findHousehold(){
   try{
+    await pickDatabase();
     const snap=await FS.getDoc(FS.doc(db,"users",user.uid));
     if(snap.exists()&&snap.data().householdId){await connectHousehold(snap.data().householdId)}
     else{setSync("nohome");routeGate()}
-  }catch(e){setSync("error")}
+  }catch(e){
+    console.warn("findHousehold:",e);
+    setSync("error");
+    showApp(false);
+    const msg=e&&e.rulesProblem
+      ? '<p style="font-size:14px;margin-bottom:8px">Signed in, but the database turned us away.</p><p style="font-size:13px;color:var(--ink2);margin-bottom:16px">The Firestore security rules are blocking access. Open Firebase, check the rules are saved on the right database, then try again.</p>'
+      : '<p style="font-size:14px;margin-bottom:8px">Couldn\'t reach the database.</p><p style="font-size:13px;color:var(--ink2);margin-bottom:16px">Check your connection and that Firestore is created in this project, then try again.</p>';
+    gate(msg+
+      '<button class="btn wide" onclick="location.reload()">Try again</button>'+
+      '<div class="gsep"></div><button class="glink" onclick="goLocal()">Use on this device only</button>'+
+      '<button class="glink" onclick="AU.signOut(auth)">Sign out</button>');
+  }
 }
 async function connectHousehold(id){
   hid=id;docRef=FS.doc(db,"households",id);
@@ -1520,7 +1562,11 @@ async function connectHousehold(id){
     setSync("live");
     applyRemote(d);
     showApp(true);
-  },err=>{console.warn(err);setSync("error")});
+  },err=>{
+    console.warn("household listener:",err);
+    setSync("error","Sync blocked — check Firestore rules");
+    showApp(true);
+  });
 }
 function applyRemote(d){
   let changed=false;applying=true;
