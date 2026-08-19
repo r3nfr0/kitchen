@@ -517,8 +517,8 @@ const FIREBASE_CONFIG = {
 /* Paste your Cloudflare Worker address here once it is deployed, e.g.
    "https://judith-ai.yourname.workers.dev" — or set it in the app under
    Quick meal → Set up ideas. */
-const VERSION = "1.28.1 beta";
-const KITCH_AI_URL = null;
+const VERSION = "1.29 beta";
+const KITCH_AI_URL = "https://judith-ai.renfro-jordan.workers.dev";
 
 /* Feature switches. Flip to true to put a feature back in front of people. */
 const SHOW_QUICK = false;   /* "What can I make" — hidden until it's good enough */
@@ -4017,6 +4017,7 @@ function accountUI(){
    VERSION HISTORY
    ===================================================================== */
 const CHANGELOG=[
+ {v:"1.29",d:"Aug 2026",n:["Ask Judith, Mix it up and A recipe you remember now work for everyone, not just whoever set the relay up"]},
  {v:"1.28",d:"Aug 2026",n:["Judith records which screens and buttons get used, so it can be built around what people actually do",
    "Counts and timings only — never recipe contents, notes, photos or names"]},
  {v:"1.27",d:"Aug 2026",n:["Renamed Judith & Co",
